@@ -1,20 +1,12 @@
 # Showcase fork only (never part of an upstream pull request).
-# The site needs a pre-build step (.ci_scripts/update_docs pre-build-only) that downloads the conda-smithy schema
-# files and renders the community templates with Python requests. The node24 image has python3 but no pip and no
-# `python` command, so the install bootstraps pip into a user base inside the checkout and adds a `python` wrapper.
-# Docusaurus dev peaked at about 2.0 GB RSS locally (compiled in 12 s), under the 3 GB cap, so it runs as a dev server.
+# Dogfood (first-try start track, ADR-0266): the pre-build step renders templates with Python requests; the runtime
+# image now carries a second toolchain, so the install calls pip and python directly, with no bootstrap or wrapper.
 version: 1
 app:
   install: >-
     npm ci &&
-    export PYTHONUSERBASE="$PWD/.pyuser" PIP_BREAK_SYSTEM_PACKAGES=1 PIP_DISABLE_PIP_VERSION_CHECK=1 &&
-    mkdir -p "$PYTHONUSERBASE/bin" &&
-    curl -fsSL https://bootstrap.pypa.io/get-pip.py -o "$PYTHONUSERBASE/get-pip.py" &&
-    python3 "$PYTHONUSERBASE/get-pip.py" --user --no-warn-script-location -q &&
-    python3 -m pip install --user -q requests &&
-    printf '#!/bin/sh\nexec python3 "$@"\n' > "$PYTHONUSERBASE/bin/python" &&
-    chmod +x "$PYTHONUSERBASE/bin/python" &&
-    CI= PATH="$PYTHONUSERBASE/bin:$PATH" bash .ci_scripts/update_docs pre-build-only
+    pip install -q requests &&
+    CI= bash .ci_scripts/update_docs pre-build-only
   start: npx docusaurus start --port {port} --host 0.0.0.0 --no-open
   url: http://localhost:{port}
   readyPath: /docs/how-to/advanced/
